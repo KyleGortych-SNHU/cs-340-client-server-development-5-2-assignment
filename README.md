@@ -39,11 +39,19 @@ Setup is done via `git clone url`.
 Installation best via a system level package manager or ephemeral build environment.
 Transitvie dependecies such as language are shown via tree level.
 
-- python 3.11
+- Python 3.11
     - pymongo
     - bson
-- mongodb ran as a daemon/service via respective init system
-- mongosh
+    - dash 
+
+- MongoDB
+    - mongosh 
+
+- Git
+
+#### Optional (for testing/CI):
+- unittest
+- unittest.mock
 
 ## Usage
 
