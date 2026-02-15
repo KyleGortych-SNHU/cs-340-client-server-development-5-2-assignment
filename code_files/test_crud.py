@@ -1,56 +1,75 @@
-""" 
-Test script for CRUD_Python_Module.py
+"""
+Test script for CRUD_Python_Module.py and ModuleFiveAssignmentApp.py
 
 Maintainer: Kyle Gortych
-Date: 02/11/2026
+Date: 02/15/2026
 """
 
+import unittest
+from unittest.mock import patch, MagicMock
+
 from CRUD_Python_Module import CRUD
+from ModuleFiveAssignmentApp import app  # Dash app
 
-def main():
-    db = CRUD()
+# Module Tests CRUD
+class TestCRUD(unittest.TestCase):
 
-    test_doc = {
-        "name": "Luna",
-        "species": "Cat",
-        "age": 5
-    }
+    @patch("CRUD_Python_Module.MongoClient")
+    def test_crud_operations(self, mock_mongo):
+        # Mock the database and collection
+        mock_db = MagicMock()
+        mock_collection = MagicMock()
+        mock_mongo.return_value.__getitem__.return_value = mock_db
+        mock_db.__getitem__.return_value = mock_collection
 
-    print("\n--- Create Test ---")
+        # Create a CRUD instance (password/username don't matter due to mock)
+        crud = CRUD(username="user", password="pass")
 
-    db.delete({"name": "Luna"})
+        test_doc = {"name": "Luna", "species": "Cat", "age": 5}
 
-    created = db.create(test_doc)
-    print("Create result:", created)
+        # Test create
+        crud.create(test_doc)
+        mock_collection.insert_one.assert_called_with(test_doc)
 
-    print("\n--- Read Test ---")
+        # Test read
+        mock_collection.find.return_value = [test_doc]
+        result = crud.read({"name": "Luna"})
+        self.assertEqual(result, [test_doc])
 
-    results = db.read({"name": "Luna"})
-    print("Read results:")
-    for doc in results:
-        print(doc)
+        # Test update
+        mock_collection.update_many.return_value.modified_count = 1
+        updated_count = crud.update({"name": "Luna"}, {"$set": {"age": 6}})
+        self.assertEqual(updated_count, 1)
 
-    print("\n--- Update Test ---")
+        # Test delete
+        mock_collection.delete_many.return_value.deleted_count = 1
+        deleted_count = crud.delete({"name": "Luna"})
+        self.assertEqual(deleted_count, 1)
 
-    update_result = db.update(
-        {"name": "Luna"},
-        {"$set": {"age": 6}}
-    )
+# Dash App Tests
+class TestDashApp(unittest.TestCase):
 
-    print("Number of documents updated:", update_result)
+    @patch("ModuleFiveAssignmentApp.CRUD")
+    def test_dash_callback(self, mock_crud_class):
+        # Mock the CRUD instance returned by the app
+        mock_crud = MagicMock()
+        mock_crud.read.return_value = [{"name": "Lucy", "animal_type": "Dog"}]
+        mock_crud_class.return_value = mock_crud
 
-    updated_doc = db.read({"name": "Luna"})
-    print("Updated document:")
-    for doc in updated_doc:
-        print(doc)
+        # Use Dash test client
+        test_client = app.test_client()
 
-    print("\n--- Delete Test ---")
+        # Simulate callback input
+        # Dash 2.0+ allows callable callbacks directly
+        from ModuleFiveAssignmentApp import update_output
 
-    delete_result = db.delete({"name": "Luna"})
-    print("Number of documents deleted:", delete_result)
+        response_text = update_output("user", "pass", n_clicks=1)
+        self.assertIn("Lucy", response_text)
 
-    final_check = db.read({"name": "Luna"})
-    print("Final read after delete should return empty list:", final_check)
+        # Test zero clicks and should prompt for credentials
+        response_text = update_output("user", "pass", n_clicks=0)
+        self.assertIn("Enter credentials", response_text)
 
+# Run tests
 if __name__ == "__main__":
-    main()
+    unittest.main()
